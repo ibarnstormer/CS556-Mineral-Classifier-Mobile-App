@@ -2,5 +2,30 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/executorch" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/executorch/backends/arm/third-party/ethos-u-core-driver" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/executorch/backends/arm/third-party/serialization_lib" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/executorch/backends/cadence/fusion_g3/third-party/nnlib/nnlib-FusionG3" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/executorch/backends/cadence/hifi/third-party/nnlib/nnlib-hifi4" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/executorch/backends/vulkan/third-party/Vulkan-Headers" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/executorch/backends/vulkan/third-party/VulkanMemoryAllocator" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/executorch/backends/vulkan/third-party/volk" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/executorch/backends/xnnpack/third-party/FP16" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/executorch/backends/xnnpack/third-party/FXdiv" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/executorch/backends/xnnpack/third-party/XNNPACK" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/executorch/backends/xnnpack/third-party/cpuinfo" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/executorch/backends/xnnpack/third-party/pthreadpool" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/executorch/extension/llm/third-party/abseil-cpp" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/executorch/extension/llm/third-party/re2" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/executorch/extension/llm/third-party/sentencepiece" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/executorch/kernels/optimized/third-party/eigen" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/executorch/third-party/ao" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/executorch/third-party/flatbuffers" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/executorch/third-party/flatcc" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/executorch/third-party/gflags" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/executorch/third-party/googletest" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/executorch/third-party/ios-cmake" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/executorch/third-party/prelude" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/executorch/third-party/pybind11" vcs="Git" />
   </component>
 </project>
