@@ -1,16 +1,26 @@
 [versions]
-agp = "8.8.0"
+agp = "8.8.2"
+cameraCore = "1.4.1"
+fbjni = "0.5.1"
 junit = "4.13.2"
 junitVersion = "1.2.1"
 espressoCore = "3.6.1"
-appcompat = "1.6.1"
-material = "1.10.0"
+appcompat = "1.7.0"
+material = "1.12.0"
 activity = "1.10.0"
-constraintlayout = "2.1.4"
+constraintlayout = "2.2.0"
 kotlin = "1.9.24"
 coreKtx = "1.15.0"
+soloader = "0.10.5"
 
 [libraries]
+camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "cameraCore" }
+camera-core = { module = "androidx.camera:camera-core", version.ref = "cameraCore" }
+camera-extensions = { module = "androidx.camera:camera-extensions", version.ref = "cameraCore" }
+camera-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "cameraCore" }
+camera-video = { module = "androidx.camera:camera-video", version.ref = "cameraCore" }
+camera-view = { module = "androidx.camera:camera-view", version.ref = "cameraCore" }
+fbjni = { module = "com.facebook.fbjni:fbjni", version.ref = "fbjni" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
@@ -19,6 +29,7 @@ material = { group = "com.google.android.material", name = "material", version.r
 activity = { group = "androidx.activity", name = "activity", version.ref = "activity" }
 constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
 core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+soloader = { module = "com.facebook.soloader:soloader", version.ref = "soloader" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

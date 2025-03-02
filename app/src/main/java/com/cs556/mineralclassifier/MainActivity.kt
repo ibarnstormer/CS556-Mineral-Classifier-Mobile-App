@@ -1,39 +1,44 @@
 package com.cs556.mineralclassifier
 
-import com.cs556.mineralclassifier.databinding.ActivityMainBinding
 import android.Manifest
 import android.content.ContentValues
 import android.content.pm.PackageManager
-import android.os.Build
+import android.content.res.AssetManager
 import android.os.Bundle
 import android.provider.MediaStore
-import androidx.appcompat.app.AppCompatActivity
-import androidx.camera.core.ImageCapture
-import androidx.camera.video.Recorder
-import androidx.camera.video.Recording
-import androidx.camera.video.VideoCapture
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.camera.core.Preview
+import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.CameraSelector
-import android.util.Log
 import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.ImageProxy
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.video.FallbackStrategy
 import androidx.camera.video.MediaStoreOutputOptions
 import androidx.camera.video.Quality
 import androidx.camera.video.QualitySelector
+import androidx.camera.video.Recorder
+import androidx.camera.video.Recording
+import androidx.camera.video.VideoCapture
 import androidx.camera.video.VideoRecordEvent
+import androidx.core.content.ContextCompat
 import androidx.core.content.PermissionChecker
+import com.cs556.mineralclassifier.databinding.ActivityMainBinding
+import org.pytorch.executorch.EValue
+import org.pytorch.executorch.Module
+import org.pytorch.executorch.Tensor
+import java.io.File
+import java.io.FileOutputStream
 import java.nio.ByteBuffer
 import java.text.SimpleDateFormat
 import java.util.Locale
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+
 
 typealias LumaListener = (luma: Double) -> Unit
 
@@ -106,6 +111,35 @@ class MainActivity : AppCompatActivity() {
         viewBinding.videoCaptureButton.setOnClickListener { captureVideo() }
 
         cameraExecutor = Executors.newSingleThreadExecutor()
+        var model: Module = Module.load(loadFileFromRawResource(R.raw.model))
+
+        var float_data = readCsv(loadFileFromRawResource(R.raw.model_csv))
+
+        var input_tensor = Tensor.fromBlob(float_data, longArrayOf(1, 3, 224, 224))
+        var input_evalue: EValue = EValue.from(input_tensor)
+        var output: Array<EValue> = model.forward(input_evalue)
+        var scores: FloatArray = output[0].toTensor().dataAsFloatArray
+        viewBinding.imageCaptureButton.text = scores.toString()
+    }
+
+    private fun loadFileFromRawResource(resourceId: Int): String {
+        this.resources.openRawResource(resourceId).use { inputStream ->
+            val file = File(
+                this.filesDir,
+                this.resources.getResourceEntryName(resourceId) + ".pte"
+            )
+            FileOutputStream(file).use { outputStream ->
+                inputStream.copyTo(outputStream)
+            }
+            return file.absolutePath
+        }
+    }
+
+    private fun readCsv(filePath: String): DoubleArray {
+        val file = File(filePath)
+        return file.readLines().map { line ->
+            line.split(",").toList().map{ it.toDouble() }.toList<Double>()
+        }.flatten().toDoubleArray()
     }
 
     private fun takePhoto() {
