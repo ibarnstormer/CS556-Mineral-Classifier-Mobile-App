@@ -16,12 +16,13 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
 import com.cs556.mineralclassifier.databinding.ActivityMainBinding
-import org.pytorch.executorch.EValue
-import org.pytorch.executorch.Module
 import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import kotlin.math.exp
+import org.pytorch.executorch.EValue
+import org.pytorch.executorch.Module
 
 class MainActivity : AppCompatActivity() {
 
@@ -69,20 +70,7 @@ class MainActivity : AppCompatActivity() {
 
         cameraExecutor = Executors.newSingleThreadExecutor()
 
-        model = Module.load(loadFileFromRawResource(R.raw.model))
-    }
-
-    private fun loadFileFromRawResource(resourceId: Int): String {
-        this.resources.openRawResource(resourceId).use { inputStream ->
-            val file = File(
-                this.filesDir,
-                this.resources.getResourceEntryName(resourceId) + ".pte"
-            )
-            FileOutputStream(file).use { outputStream ->
-                inputStream.copyTo(outputStream)
-            }
-            return file.absolutePath
-        }
+        model = Module.load(loadFileFromRawResource(R.raw.mineralcnn_small))
     }
 
     private fun takePhoto() {
@@ -113,12 +101,19 @@ class MainActivity : AppCompatActivity() {
                     val inputEValue: EValue = EValue.from(inputTensor)
                     val output: Array<EValue> = model.forward(inputEValue)
                     val scores: FloatArray = output[0].toTensor().dataAsFloatArray
-                    viewBinding.logView.text = scores.toString()
+
+                    val result = mineralClass(scores.asList())
+                    Log.d(TAG, "scores = ${scores.contentToString()}")
+                    Log.d(TAG, "mineral = $result")
+
+                    val text = "Class: ${result[0]} Confident: ${result[1]}"
+                    viewBinding.logView.text = text
+
+                    image.close()
                 }
             }
         )
     }
-
 
     private fun startCamera() {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
@@ -177,4 +172,37 @@ class MainActivity : AppCompatActivity() {
                 ).apply {
                 }.toTypedArray()
     }
+
+    private fun loadFileFromRawResource(resourceId: Int): String {
+        this.resources.openRawResource(resourceId).use { inputStream ->
+            val file = File(
+                this.filesDir,
+                this.resources.getResourceEntryName(resourceId) + ".pte"
+            )
+            FileOutputStream(file).use { outputStream ->
+                inputStream.copyTo(outputStream)
+            }
+            return file.absolutePath
+        }
+    }
+
+    private fun mineralClass(scores: List<Float>): Array<String> {
+        val minerals = arrayOf("Cassiterite", "Chalcedony", "Hematite", "Quartz", "Topaz")
+        val mineClass = argMax(scores)
+        val confident = softMax(scores)
+        return arrayOf(minerals[mineClass], confident[mineClass].toString())
+    }
+
+    private fun <T : Comparable<T>> argMax(list: List<T>): Int {
+        return list.indexOf(list.maxOrNull())
+    }
+
+    private fun softMax(list: List<Float>): List<Double> {
+        val means = list.average()
+        val exp = list.map { exp(it - means) }
+        val sum = exp.sum()
+
+        return exp.map { it / sum }
+    }
+
 }

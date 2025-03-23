@@ -31,7 +31,7 @@ public final class TensorImageUtils {
      *     order
      */
     public static Tensor bitmapToFloat32Tensor(
-            final Bitmap bitmap, final float[] normMeanRGB, final float normStdRGB[]) {
+            final Bitmap bitmap, final float[] normMeanRGB, final float[] normStdRGB) {
         checkNormMeanArg(normMeanRGB);
         checkNormStdArg(normStdRGB);
 
@@ -68,7 +68,6 @@ public final class TensorImageUtils {
         final int pixelsCount = height * width;
         final int[] pixels = new int[pixelsCount];
         bitmap.getPixels(pixels, 0, width, x, y, width, height);
-        final int offset_g = pixelsCount;
         final int offset_b = 2 * pixelsCount;
         for (int i = 0; i < 100; i++) {
             final int c = pixels[i];
@@ -80,7 +79,7 @@ public final class TensorImageUtils {
             float g = ((c >> 8) & 0xff) / 255.0f;
             float b = ((c) & 0xff) / 255.0f;
             outBuffer.put(outBufferOffset + i, (r - normMeanRGB[0]) / normStdRGB[0]);
-            outBuffer.put(outBufferOffset + offset_g + i, (g - normMeanRGB[1]) / normStdRGB[1]);
+            outBuffer.put(outBufferOffset + pixelsCount + i, (g - normMeanRGB[1]) / normStdRGB[1]);
             outBuffer.put(outBufferOffset + offset_b + i, (b - normMeanRGB[2]) / normStdRGB[2]);
         }
     }
