@@ -3,12 +3,15 @@ package com.cs556.mineralclassifier
 import android.Manifest
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.icu.text.DecimalFormat
 import android.os.Bundle
 import android.util.Log
+import android.view.View
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.ImageProxy
@@ -16,13 +19,17 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
 import com.cs556.mineralclassifier.databinding.ActivityMainBinding
+import org.pytorch.executorch.EValue
+import org.pytorch.executorch.Module
 import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import kotlin.math.exp
-import org.pytorch.executorch.EValue
-import org.pytorch.executorch.Module
+import kotlin.time.DurationUnit
+import kotlin.time.measureTime
+
+typealias MineralListener = (mine: List<Float>) -> Unit
 
 class MainActivity : AppCompatActivity() {
 
@@ -33,6 +40,8 @@ class MainActivity : AppCompatActivity() {
     lateinit var model: Module
 
     private lateinit var cameraExecutor: ExecutorService
+
+    private var realTimeMode: Boolean = false
 
     private val activityResultLauncher =
         registerForActivityResult(
@@ -67,10 +76,25 @@ class MainActivity : AppCompatActivity() {
 
         // Set up the listeners for take photo and video capture buttons
         viewBinding.imageCaptureButton.setOnClickListener { takePhoto() }
+        viewBinding.switchButton.setOnClickListener { switch() }
 
         cameraExecutor = Executors.newSingleThreadExecutor()
 
-        model = Module.load(loadFileFromRawResource(R.raw.mineralcnn_small))
+        model = Module.load(loadFileFromRawResource(R.raw.mineralcnn_dsc_4_21_2025))
+    }
+
+    private fun switch() {
+        lateinit var text: String
+        if (realTimeMode) {
+            viewBinding.imageCaptureButton.visibility = View.VISIBLE
+            text = "Real Time Mode"
+        }
+        else {
+            viewBinding.imageCaptureButton.visibility = View.INVISIBLE
+            text = "Pause"
+        }
+        viewBinding.switchButton.text = text
+        realTimeMode = !realTimeMode
     }
 
     private fun takePhoto() {
@@ -88,25 +112,28 @@ class MainActivity : AppCompatActivity() {
 
                 override fun
                         onCaptureSuccess(image: ImageProxy){
-                    val msg = "Photo capture succeeded: ${image.imageInfo}"
-                    Toast.makeText(baseContext, msg, Toast.LENGTH_SHORT).show()
-                    Log.d(TAG, msg)
+                    lateinit var result: Array<String>
+                    val elapsed = measureTime { val msg = "Photo capture succeeded: ${image.imageInfo}"
+                        Toast.makeText(baseContext, msg, Toast.LENGTH_SHORT).show()
+                        Log.d(TAG, msg)
 
-                    val bitmap = Bitmap.createScaledBitmap(image.toBitmap(), 224, 224, false)
+                        val bitmap = Bitmap.createScaledBitmap(image.toBitmap(), 224, 224, false)
 
-                    val inputTensor = TensorImageUtils.bitmapToFloat32Tensor(
-                        bitmap,
-                        TensorImageUtils.TORCHVISION_NORM_MEAN_RGB,
-                        TensorImageUtils.TORCHVISION_NORM_STD_RGB)
-                    val inputEValue: EValue = EValue.from(inputTensor)
-                    val output: Array<EValue> = model.forward(inputEValue)
-                    val scores: FloatArray = output[0].toTensor().dataAsFloatArray
+                        val inputTensor = TensorImageUtils.bitmapToFloat32Tensor(
+                            bitmap,
+                            TensorImageUtils.TORCHVISION_NORM_MEAN_RGB,
+                            TensorImageUtils.TORCHVISION_NORM_STD_RGB)
+                        val inputEValue: EValue = EValue.from(inputTensor)
+                        val output: Array<EValue> = model.forward(inputEValue)
+                        val scores: FloatArray = output[0].toTensor().dataAsFloatArray
 
-                    val result = mineralClass(scores.asList())
-                    Log.d(TAG, "scores = ${scores.contentToString()}")
-                    Log.d(TAG, "mineral = $result")
+                        result = mineralClass(scores.asList())
+                        Log.d(TAG, "scores = ${scores.contentToString()}")
+                        Log.d(TAG, "mineral = ${result[0]}")
+                    }.toString(DurationUnit.MILLISECONDS,2)
 
-                    val text = "Class: ${result[0]} Confident: ${result[1]}"
+                    val latency = "\nLatency: $elapsed"
+                    val text = "Class: ${result[0]} \nConfident: ${result[1]}%" + latency
                     viewBinding.logView.text = text
 
                     image.close()
@@ -131,16 +158,36 @@ class MainActivity : AppCompatActivity() {
 
             imageCapture = ImageCapture.Builder().build()
 
+            val imageAnalyzer = ImageAnalysis.Builder()
+                .build()
+                .also {
+                    it.setAnalyzer(cameraExecutor, MineralAnalyzer(this.model) { list ->
+                        if(realTimeMode) {
+                            val result = mineralClass(list.dropLast(1))
+                            val mineral = "Class: ${result[0]}"
+                            val confident = "Confident = ${result[1]}%"
+                            val latency = "Latency = ${list.last()} ms"
+                            val text = mineral + "\n" + confident + "\n" + latency
+                            viewBinding.logView.text = text
+
+                            Log.d(TAG, mineral)
+                            Log.d(TAG, confident)
+                            Log.d(TAG, latency)
+                        }
+                    })
+                }
+
             // Select back camera as a default
             val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
 
             try {
-                // Unbind use cases before rebinding
-                cameraProvider.unbindAll()
+                    // Unbind use cases before rebinding
+                    cameraProvider.unbindAll()
 
-                // Bind use cases to camera
-                cameraProvider.bindToLifecycle(
-                    this, cameraSelector, preview, imageCapture)
+                    // Bind use cases to camera
+                    cameraProvider.bindToLifecycle(
+                        this, cameraSelector, preview, imageCapture, imageAnalyzer
+                    )
 
             } catch(exc: Exception) {
                 Log.e(TAG, "Use case binding failed", exc)
@@ -155,7 +202,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
         ContextCompat.checkSelfPermission(
-                baseContext, it) == PackageManager.PERMISSION_GRANTED
+            baseContext, it) == PackageManager.PERMISSION_GRANTED
     }
 
     override fun onDestroy() {
@@ -164,13 +211,39 @@ class MainActivity : AppCompatActivity() {
     }
 
     companion object {
-        private const val TAG = "CameraXApp"
+        private const val TAG = "Mineral"
         private val REQUIRED_PERMISSIONS =
-                mutableListOf (
-                        Manifest.permission.CAMERA,
-                        Manifest.permission.RECORD_AUDIO
-                ).apply {
-                }.toTypedArray()
+            mutableListOf (
+                Manifest.permission.CAMERA,
+                Manifest.permission.RECORD_AUDIO
+            ).apply {
+            }.toTypedArray()
+    }
+
+    private class MineralAnalyzer(private val model: Module, private val listener: MineralListener) : ImageAnalysis.Analyzer {
+
+
+        override fun analyze(image: ImageProxy) {
+
+            lateinit var scores: FloatArray
+            val elapsed = measureTime {
+                val bitmap = Bitmap.createScaledBitmap(image.toBitmap(), 224, 224, false)
+
+                val inputTensor = TensorImageUtils.bitmapToFloat32Tensor(
+                    bitmap,
+                    TensorImageUtils.TORCHVISION_NORM_MEAN_RGB,
+                    TensorImageUtils.TORCHVISION_NORM_STD_RGB)
+                val inputEValue: EValue = EValue.from(inputTensor)
+                val output: Array<EValue> = model.forward(inputEValue)
+                scores = output[0].toTensor().dataAsFloatArray
+            }.toString(DurationUnit.MILLISECONDS,2).substringBefore("ms").toFloat()
+
+            val returnList = scores.toList() + elapsed
+
+            listener(returnList)
+            
+            image.close()
+        }
     }
 
     private fun loadFileFromRawResource(resourceId: Int): String {
@@ -187,10 +260,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun mineralClass(scores: List<Float>): Array<String> {
-        val minerals = arrayOf("Cassiterite", "Chalcedony", "Hematite", "Quartz", "Topaz")
+        val minerals = arrayOf("Agate","Amethyst","Beryl","Copper","Diopside","Gold",
+            "Quartz","Silver","Spinel","Topaz")
         val mineClass = argMax(scores)
-        val confident = softMax(scores)
-        return arrayOf(minerals[mineClass], confident[mineClass].toString())
+        val confident = softMax(scores)[mineClass]
+        val df = DecimalFormat("##.##%")
+        return arrayOf(minerals[mineClass], df.format(confident))
     }
 
     private fun <T : Comparable<T>> argMax(list: List<T>): Int {
