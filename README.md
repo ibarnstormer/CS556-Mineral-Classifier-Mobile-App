@@ -1,5 +1,5 @@
 # Setup
-Clone the repository, and  run in through Android Studio
+Clone the repository, and  run it through Android Studio
 
 # App Architechture
 ## Input
